@@ -5,6 +5,9 @@ from binance.client import Client as BinanceClient
 from degiro_connector.trading.api import API as DegiroAPI
 # Bit2Me does not have an official Python library, so HTTP requests are used for it
 import requests
+import socket
+from binance.exceptions import BinanceAPIException, BinanceRequestException
+
 
 def fetch_coinbase_portfolio(api_key, api_secret):
     """Fetch portfolio data from Coinbase using the official library."""
@@ -20,19 +23,24 @@ def fetch_coinbase_portfolio(api_key, api_secret):
     return pd.DataFrame(data)
 
 def fetch_binance_portfolio(api_key, api_secret):
-    """Fetch portfolio data from Binance using the official library."""
-    client = BinanceClient(api_key, api_secret)
-    account = client.get_account()
-    balances = account['balances']
-    data = []
-    for balance in balances:
-        if float(balance['free']) > 0 or float(balance['locked']) > 0:
-            data.append({
-                'Asset': balance['asset'],
-                'Free': balance['free'],
-                'Locked': balance['locked']
-            })
-    return pd.DataFrame(data)
+    try:
+        client = BinanceClient(api_key, api_secret)
+        account = client.get_account()
+        balances = account['balances']
+        data = []
+        for balance in balances:
+            if float(balance['free']) > 0 or float(balance['locked']) > 0:
+                data.append({
+                    'Asset': balance['asset'],
+                    'Free': balance['free'],
+                    'Locked': balance['locked']
+                })
+        return pd.DataFrame(data)
+    except (BinanceAPIException, BinanceRequestException) as e:
+        st.error("Error fetching data from Binance. Please check your API credentials, network connection, and rate limits.")
+        st.error(f"Detailed error: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame in case of error
+      
 
 def fetch_degiro_portfolio(username, password):
     """Fetch portfolio data from Degiro using the official library."""
@@ -62,6 +70,21 @@ def fetch_bit2me_portfolio(api_key):
     else:
         st.error(f"Failed to fetch data from Bit2Me: {response.text}")
         return pd.DataFrame()
+
+def get_ip():
+
+    """Get the private IP address of the current machine."""
+    hostname = socket.gethostname()
+    private_ip = socket.gethostbyname(hostname)
+    public_ip = '0'
+    """Get the public IP address using an external service."""
+    try:
+        response = requests.get('https://api.ipify.org?format=json')
+        response.raise_for_status()
+        public_ip = response.json().get('ip', 'Unavailable')
+    except requests.RequestException:
+        public_ip = 'Unable to fetch public IP'
+    return private_ip, public_ip
 
 def main():
     st.title("Portfolio Tracker")
@@ -95,6 +118,10 @@ def main():
         if st.sidebar.button("Fetch Portfolio"):
             df = fetch_bit2me_portfolio(api_key)
             st.write(df)
+
+    if st.sidebar.button("Show IP Address"):
+        ip_address = get_ip()
+        st.sidebar.write(f"Your IP Address: {ip_address}")
 
 if __name__ == "__main__":
     main()
