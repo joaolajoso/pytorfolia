@@ -1,0 +1,9 @@
+streamlit
+streamlit-elements
+yfinance
+datetime
+groq
+groq-qa-generator
+coinbase
+python-binance
+degiro-connector
