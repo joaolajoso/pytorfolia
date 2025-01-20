@@ -7,3 +7,4 @@ groq-qa-generator
 coinbase
 python-binance
 degiro-connector
+sockets
